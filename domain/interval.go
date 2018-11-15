@@ -1,74 +1,84 @@
 package domain
 
-type interval interface {
+import (
+	"errors"
+	"regexp"
+	"strconv"
+)
+
+var varRegexp = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9]*$")
+
+type AbstractInterval interface {
 	Operation
-	Left() Value
-	Right() Value
-	Add(b interval) interval
-	Sub(b interval) interval
-	Div(b interval) interval
-	Mul(b interval) interval
-	String() string
+	Left() (float64, bool)
+	Right() (float64, bool)
 }
 
 type intervalImpl struct {
-	a Value
-	b Value
+	left  float64
+	right float64
 }
 
-func (i intervalImpl) Left() Value {
-	return i.a
+func (i intervalImpl) Left() (float64, bool) {
+	return i.left, true
 }
 
-func (i intervalImpl) Right() Value {
-	return i.b
-}
-
-func (i intervalImpl) Add(b interval) interval {
-	newA := i.a.Add(b.Left())
-	newB := i.b.Add(b.Right())
-	return intervalImpl{
-		a: newA,
-		b: newB,
-	}
-}
-
-func (i intervalImpl) Sub(b interval) interval {
-	newA := i.a.Sub(b.Left())
-	newB := i.b.Sub(b.Right())
-	return intervalImpl{
-		a: newA,
-		b: newB,
-	}
-}
-func (i intervalImpl) Div(b interval) interval {
-	newA := i.a.Div(b.Left())
-	newB := i.b.Div(b.Right())
-	return intervalImpl{
-		a: newA,
-		b: newB,
-	}
-}
-func (i intervalImpl) Mul(b interval) interval {
-	newA := i.a.Mul(b.Left())
-	newB := i.b.Mul(b.Right())
-	return intervalImpl{
-		a: newA,
-		b: newB,
-	}
+func (i intervalImpl) Right() (float64, bool) {
+	return i.right, true
 }
 
 func (i intervalImpl) String() string {
-	return "[ " + i.a.String() + ", " + i.b.String() + " ]"
+	return "[ " + strconv.FormatFloat(i.left, 'f', 4, 64) + ", " + strconv.FormatFloat(i.right, 'f', 4, 64) + " ]"
 }
 
-func (i intervalImpl) Result() interval {
+func (i intervalImpl) Solve(params ParamMap) Operation {
 	return i
 }
 
-func Interval(left Value, right Value) interval {
+func (i intervalImpl) priority() byte {
+	return 255
+}
+
+func Interval(left float64, right float64) AbstractInterval {
 	return intervalImpl{
-		a: left,
-		b: right,
+		left:  left,
+		right: right,
 	}
+}
+
+type parametricInterval struct {
+	variable string
+}
+
+func (i parametricInterval) Left() (float64, bool) {
+	return 0, false
+}
+
+func (i parametricInterval) Right() (float64, bool) {
+	return 0, false
+}
+
+func (i parametricInterval) String() string {
+	return i.variable
+}
+
+func (i parametricInterval) Solve(params ParamMap) Operation {
+	if params[i.variable] != nil {
+		return params[i.variable]
+	} else {
+		return i
+	}
+}
+
+func (i parametricInterval) priority() byte {
+	return 255
+}
+
+func ParametricInterval(varName string) (AbstractInterval, error) {
+	if !varRegexp.MatchString(varName) {
+		return nil, errors.New("wrong variable name. Variable should contain letters and numbers, starting from letter")
+	}
+	return parametricInterval{
+		variable: varName,
+	}, nil
 }

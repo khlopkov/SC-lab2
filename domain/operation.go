@@ -1,99 +1,293 @@
 package domain
 
+import (
+	"math"
+	"reflect"
+)
+
+type ParamMap map[string]AbstractInterval
+
 type Operation interface {
-	Result() interval
-}
-
-type BinaryOperation interface {
-	Operation
-	A() Operation
-	B() Operation
-	SetA(o Operation)
-	SetB(o Operation)
-}
-
-type AbstractBinaryOperation struct {
-	a Operation
-	b Operation
-}
-
-func (s AbstractBinaryOperation) A() Operation {
-	return s.a
-}
-func (s AbstractBinaryOperation) B() Operation {
-	return s.b
-}
-func (s *AbstractBinaryOperation) SetA(o Operation) {
-	s.a = o
-}
-func (s *AbstractBinaryOperation) SetB(o Operation) {
-	s.b = o
+	Solve(params ParamMap) Operation
+	String() string
+	priority() byte
 }
 
 type add struct {
-	AbstractBinaryOperation
+	operands []Operation
+	result   Operation
 }
 
-func (s add) Result() interval {
-	return s.b.Result().Add(s.a.Result())
+func (o *add) priority() byte {
+	return 1
 }
 
-func Add(a Operation, b Operation) Operation {
-	return add{
-		AbstractBinaryOperation{
-			a: a,
-			b: b,
-		},
+func (o *add) Solve(params ParamMap) Operation {
+	if o.result != nil {
+		return o.result
+	}
+	var parametric add
+	counted := intervalImpl{}
+	for _, op := range o.operands {
+		foldedOp := op.Solve(params)
+		if reflect.TypeOf(foldedOp) == reflect.TypeOf(counted) {
+			counted.left += foldedOp.(intervalImpl).left
+			counted.right += foldedOp.(intervalImpl).right
+		} else {
+			parametric.operands = append(parametric.operands, foldedOp)
+		}
+	}
+	if len(parametric.operands) > 0 {
+		if counted.left == 0 && counted.right == 0 {
+			o.result = &parametric
+			return o.result
+		}
+		parametric.operands = append(parametric.operands, counted)
+		o.result = &parametric
+		return o.result
+	}
+	o.result = counted
+	return o.result
+}
+
+func (o *add) String() string {
+	res := o.Solve(ParamMap{})
+	var s string
+	if reflect.TypeOf(res) == reflect.TypeOf(&add{}) {
+		add, _ := res.(*add)
+		for i, op := range add.operands {
+			s += op.String()
+			if i != len(add.operands)-1 {
+				s += " + "
+			}
+		}
+		return s
+	}
+	return res.String()
+}
+
+func Add(operands ...Operation) Operation {
+	return &add{
+		operands: operands,
 	}
 }
 
 type sub struct {
-	AbstractBinaryOperation
+	a      Operation
+	b      Operation
+	result Operation
 }
 
-func (s sub) Result() interval {
-	return s.b.Result().Sub(s.a.Result())
+func (o *sub) Solve(params ParamMap) Operation {
+	if o.result != nil {
+		return o.result
+	}
+	foldedA := o.a.Solve(params)
+	foldedB := o.b.Solve(params)
+	if reflect.TypeOf(foldedA) == reflect.TypeOf(intervalImpl{}) &&
+		reflect.TypeOf(foldedB) == reflect.TypeOf(intervalImpl{}) {
+		res := intervalImpl{
+			left:  foldedA.(intervalImpl).left - foldedB.(intervalImpl).left,
+			right: foldedA.(intervalImpl).right - foldedB.(intervalImpl).right,
+		}
+		o.result = res
+	} else {
+		o.result = &sub{
+			a: foldedA,
+			b: foldedB,
+		}
+	}
+	return o.result
 }
 
-func Sub(a Operation, b Operation) Operation {
-	return sub{
-		AbstractBinaryOperation{
-			a: a,
-			b: b,
-		},
+func (o *sub) String() string {
+	empty := ParamMap{}
+	res := o.Solve(empty)
+	var s string
+	if reflect.TypeOf(res) == reflect.TypeOf(&sub{}) {
+		sub, _ := res.(*sub)
+		s += sub.a.Solve(empty).String() + " - " + sub.b.Solve(empty).String()
+		return s
+	}
+	return res.String()
+}
+
+func (o *sub) priority() byte {
+	return 1
+}
+
+func Sub(a, b Operation) Operation {
+	return &sub{
+		a: a,
+		b: b,
 	}
 }
 
 type mul struct {
-	AbstractBinaryOperation
+	operands []Operation
+	result   Operation
 }
 
-func (s mul) Result() interval {
-	return s.b.Result().Mul(s.a.Result())
+func (o *mul) priority() byte {
+	return 2
 }
 
-func Mul(a Operation, b Operation) Operation {
-	return mul{
-		AbstractBinaryOperation{
-			a: a,
-			b: b,
-		},
+func (o *mul) Solve(params ParamMap) Operation {
+	if o.result != nil {
+		return o.result
+	}
+	var parametric mul
+	counted := intervalImpl{
+		left:  1,
+		right: 1,
+	}
+	for _, op := range o.operands {
+		foldedOp := op.Solve(params)
+		if reflect.TypeOf(foldedOp) == reflect.TypeOf(counted) {
+			factor := foldedOp.(intervalImpl)
+			min := math.Min(
+				math.Min(
+					counted.left*factor.left,
+					counted.left*factor.right,
+				),
+				math.Min(
+					counted.right*factor.left,
+					counted.right*factor.right,
+				),
+			)
+			max := math.Max(
+				math.Max(
+					counted.left*factor.left,
+					counted.left*factor.right,
+				),
+				math.Max(
+					counted.right*factor.left,
+					counted.right*factor.right,
+				),
+			)
+			counted.left = min
+			counted.right = max
+		} else {
+			parametric.operands = append(parametric.operands, foldedOp)
+		}
+	}
+	if len(parametric.operands) > 0 {
+		if counted.left == 1 && counted.right == 1 {
+			o.result = &parametric
+			return o.result
+		}
+		parametric.operands = append(parametric.operands, counted)
+		o.result = &parametric
+		return o.result
+	}
+	o.result = counted
+	return o.result
+}
+
+func (o *mul) String() string {
+	res := o.Solve(ParamMap{})
+	var s string
+	if reflect.TypeOf(res) == reflect.TypeOf(o) {
+		mul, _ := res.(*mul)
+		for i, op := range mul.operands {
+			if op.priority() < o.priority() {
+				s += "(" + op.String() + ")"
+			} else {
+				s += op.String()
+			}
+			if i != len(mul.operands)-1 {
+				s += "*"
+			}
+		}
+		return s
+	}
+	return res.String()
+}
+
+func Mul(operands ...Operation) Operation {
+	return &mul{
+		operands: operands,
 	}
 }
 
 type div struct {
-	AbstractBinaryOperation
+	a      Operation
+	b      Operation
+	result Operation
 }
 
-func (s div) Result() interval {
-	return s.b.Result().Div(s.a.Result())
+func (o *div) Solve(params ParamMap) Operation {
+	if o.result != nil {
+		return o.result
+	}
+	foldedA := o.a.Solve(params)
+	foldedB := o.b.Solve(params)
+	if reflect.TypeOf(foldedA) == reflect.TypeOf(intervalImpl{}) &&
+		reflect.TypeOf(foldedB) == reflect.TypeOf(intervalImpl{}) {
+		dividend := foldedA.(intervalImpl)
+		divider := foldedB.(intervalImpl)
+		min := math.Min(
+			math.Min(
+				dividend.left/divider.left,
+				dividend.left/divider.right,
+			),
+			math.Min(
+				dividend.right*divider.left,
+				dividend.right*divider.right,
+			),
+		)
+		max := math.Max(
+			math.Max(
+				dividend.left*divider.left,
+				dividend.left*divider.right,
+			),
+			math.Max(
+				dividend.right*divider.left,
+				dividend.right*divider.right,
+			),
+		)
+		res := intervalImpl{
+			left:  min,
+			right: max,
+		}
+		o.result = res
+	} else {
+		o.result = &div{
+			a: foldedA,
+			b: foldedB,
+		}
+	}
+	return o.result
 }
 
-func Div(a Operation, b Operation) Operation {
-	return div{
-		AbstractBinaryOperation{
-			a: a,
-			b: b,
-		},
+func (o *div) String() string {
+	res := o.Solve(ParamMap{})
+	var s string
+	if reflect.TypeOf(res) == reflect.TypeOf(o) {
+		div, _ := res.(*div)
+		if div.a.priority() < o.priority() {
+			s += "(" + div.a.String() + ")"
+		} else {
+			s += div.a.String()
+		}
+		s += "/"
+		if div.b.priority() < o.priority() {
+			s += "(" + div.b.String() + ")"
+		} else {
+			s += div.b.String()
+		}
+		return s
+	}
+	return res.String()
+}
+
+func (o *div) priority() byte {
+	return 3
+}
+
+func Div(a, b Operation) Operation {
+	return &div{
+		a: a,
+		b: b,
 	}
 }

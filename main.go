@@ -7,16 +7,20 @@ import (
 )
 
 func main() {
-	var op domain.Operation
-	op = domain.Add(
+	variable, err := domain.ParametricInterval("x")
+	if err != nil {
+		panic(err)
+	}
+
+	op := domain.Add(
+		domain.Interval(1, 4),
 		domain.Div(
-			domain.Interval(domain.Const(0), domain.Const(1)),
-			domain.Interval(domain.Const(2), domain.Const(5)),
-		),
-		domain.Mul(
-			domain.Interval(domain.Const(0), domain.Const(1)),
-			domain.Interval(domain.Const(2), domain.Const(0)),
+			variable,
+			domain.Add(
+				variable,
+				domain.Interval(2, -5),
+			),
 		),
 	)
-	fmt.Println(op.Result().String())
+	fmt.Println(op.Solve(domain.ParamMap{"u": domain.Interval(-3, 4)}).String())
 }
