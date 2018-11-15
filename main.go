@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/khlopkov/SC-lab1/domain"
+	"github.com/khlopkov/SC-lab2/domain"
 )
 
 func main() {
