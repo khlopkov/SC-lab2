@@ -14,7 +14,7 @@ func main() {
 
 	op := domain.Add(
 		domain.Interval(1, 4),
-		domain.Div(
+		domain.Sub(
 			variable,
 			domain.Add(
 				variable,

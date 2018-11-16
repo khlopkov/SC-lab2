@@ -106,7 +106,12 @@ func (o *sub) String() string {
 	var s string
 	if reflect.TypeOf(res) == reflect.TypeOf(&sub{}) {
 		sub, _ := res.(*sub)
-		s += sub.a.Solve(empty).String() + " - " + sub.b.Solve(empty).String()
+		s += sub.a.Solve(empty).String() + " - "
+		if sub.b.priority() <= o.priority() {
+			s += "(" + sub.b.Solve(empty).String() + ")"
+		} else {
+			s += sub.b.Solve(empty).String()
+		}
 		return s
 	}
 	return res.String()
@@ -271,7 +276,7 @@ func (o *div) String() string {
 			s += div.a.String()
 		}
 		s += "/"
-		if div.b.priority() < o.priority() {
+		if div.b.priority() <= o.priority() {
 			s += "(" + div.b.String() + ")"
 		} else {
 			s += div.b.String()
