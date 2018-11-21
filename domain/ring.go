@@ -1,29 +1,31 @@
 package domain
 
 type ring interface {
-	mul(multipliers ...Interval) Interval
-	add(addednds ...Interval) Interval
+	mul(multiplier operation) operation
+	add(addednd operation) operation
 }
 
 type operation interface {
+	ring
 	priority() byte
-	Solve(varMap VarMap) Interval
+	Solve(varMap VarMap) operation
 	String() string
 }
 
 type group interface {
-	neutral() intervalImpl
+	neutral() constInterval
 	inversed() group
+	op() operation
 }
 
 type mul struct {
-	k           intervalImpl
-	operands    []Interval
-	invOperands []Interval
+	k           constInterval
+	operands    []operation
+	invOperands []operation
 }
 
-func (o mul) neutral() intervalImpl {
-	return intervalImpl{1, 1}
+func (o mul) neutral() constInterval {
+	return constInterval{1, 1}
 }
 
 func (o mul) inversed() group {
@@ -32,28 +34,32 @@ func (o mul) inversed() group {
 	return o
 }
 
+func (o mul) op() operation {
+	return o
+}
+
 func (o mul) priority() byte {
 	return 2
 }
 
-func (o mul) Solve(varMap VarMap) Interval {
+func (o mul) Solve(varMap VarMap) operation {
 	var res = mul{
 		k: o.k,
 	}
 	if o.k.left == 0 && o.k.right == 0 {
-		return intervalImpl{0, 0}
+		return constInterval{0, 0}
 	}
 	for _, operand := range o.operands {
-		if i, ok := operand.Solve(varMap).(intervalImpl); ok {
+		if i, ok := operand.Solve(varMap).(constInterval); ok {
 			if i.left == 0 && i.right == 0 {
-				return intervalImpl{0, 0}
+				return constInterval{0, 0}
 			}
 			res.k = binaryMul(res.k, i)
 			continue
 		}
 		if m, ok := operand.Solve(varMap).(mul); ok {
 			if m.k.left == 0 && m.k.right == 0 {
-				return intervalImpl{0, 0}
+				return constInterval{0, 0}
 			}
 			res.k = binaryMul(m.k, res.k)
 			res.operands = append(res.operands, m.operands...)
@@ -63,7 +69,7 @@ func (o mul) Solve(varMap VarMap) Interval {
 		res.operands = append(res.operands, operand.Solve(varMap))
 	}
 	for _, operand := range o.invOperands {
-		if i, ok := operand.Solve(varMap).(intervalImpl); ok {
+		if i, ok := operand.Solve(varMap).(constInterval); ok {
 			if i.left == 0 || i.right == 0 {
 				panic("Division by zero interval")
 			}
@@ -113,49 +119,28 @@ func (o mul) String() string {
 	return res
 }
 
-func (o mul) mul(multipliers ...Interval) Interval {
-	o.operands = append(o.operands, multipliers...)
+func (o mul) mul(multiplier operation) operation {
+	o.operands = append(o.operands, multiplier)
 	return o
 }
 
-func (o mul) add(addednds ...Interval) Interval {
+func (o mul) add(addednd operation) operation {
 	res := add{
 		m:        add{}.neutral(),
-		operands: []Interval{o},
+		operands: []operation{o},
 	}
-	res.operands = append(res.operands, addednds...)
-	return o
-}
-
-func (o mul) Add(addednds ...Interval) Interval {
-	return o.add(addednds...)
-}
-
-func (o mul) Sub(subtrahend Interval) Interval {
-	return add{
-		m:           add{}.neutral(),
-		operands:    []Interval{o},
-		invOperands: []Interval{subtrahend},
-	}
-}
-
-func (o mul) Mul(multipliers ...Interval) Interval {
-	return o.mul(multipliers...)
-}
-
-func (o mul) Div(divider Interval) Interval {
-	o.invOperands = append(o.invOperands, divider)
-	return o
+	res.operands = append(res.operands, addednd)
+	return res
 }
 
 type add struct {
-	m           intervalImpl
-	operands    []Interval
-	invOperands []Interval
+	m           constInterval
+	operands    []operation
+	invOperands []operation
 }
 
-func (o add) neutral() intervalImpl {
-	return intervalImpl{0, 0}
+func (o add) neutral() constInterval {
+	return constInterval{0, 0}
 }
 
 func (o add) inversed() group {
@@ -164,16 +149,20 @@ func (o add) inversed() group {
 	return o
 }
 
+func (o add) op() operation {
+	return o
+}
+
 func (o add) priority() byte {
 	return 1
 }
 
-func (o add) Solve(varMap VarMap) Interval {
+func (o add) Solve(varMap VarMap) operation {
 	var res = add{
 		m: o.m,
 	}
 	for _, operand := range o.operands {
-		if i, ok := operand.Solve(varMap).(intervalImpl); ok {
+		if i, ok := operand.Solve(varMap).(constInterval); ok {
 			res.m = binaryAdd(res.m, i)
 			continue
 		}
@@ -186,7 +175,7 @@ func (o add) Solve(varMap VarMap) Interval {
 		res.operands = append(res.operands, operand.Solve(varMap))
 	}
 	for _, operand := range o.invOperands {
-		if i, ok := operand.Solve(varMap).(intervalImpl); ok {
+		if i, ok := operand.Solve(varMap).(constInterval); ok {
 			res.m = binarySub(res.m, i)
 			continue
 		}
@@ -232,37 +221,16 @@ func (o add) String() string {
 	return res
 }
 
-func (o add) mul(multipliers ...Interval) Interval {
+func (o add) mul(multiplier operation) operation {
 	res := mul{
 		k:        mul{}.neutral(),
-		operands: []Interval{o},
+		operands: []operation{o},
 	}
-	res.operands = append(res.operands, multipliers...)
+	res.operands = append(res.operands, multiplier)
 	return o
 }
 
-func (o add) add(addednds ...Interval) Interval {
-	o.operands = append(o.operands, addednds...)
+func (o add) add(addednd operation) operation {
+	o.operands = append(o.operands, addednd)
 	return o
-}
-
-func (o add) Add(addednds ...Interval) Interval {
-	return o.add(addednds...)
-}
-
-func (o add) Sub(subtrahend Interval) Interval {
-	o.invOperands = append(o.invOperands, subtrahend)
-	return o
-}
-
-func (o add) Mul(multipliers ...Interval) Interval {
-	return o.mul(multipliers...)
-}
-
-func (o add) Div(divider Interval) Interval {
-	return mul{
-		k:           mul{}.neutral(),
-		operands:    []Interval{o},
-		invOperands: []Interval{divider},
-	}
 }

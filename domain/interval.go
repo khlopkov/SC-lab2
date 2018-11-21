@@ -8,83 +8,108 @@ import (
 
 var varRegexp = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9]*$")
 
-type Interval interface {
-	operation
-	ring
-	Add(addednds ...Interval) Interval
-	Sub(subtrahend Interval) Interval
-	Mul(multipliers ...Interval) Interval
-	Div(divider Interval) Interval
+type Interval struct {
+	op operation
 }
 
 func NewInterval(left float64, right float64) Interval {
-	return intervalImpl{
-		left:  left,
-		right: right,
+	return Interval{
+		op: constInterval{
+			left:  left,
+			right: right,
+		},
 	}
 }
 
-type intervalImpl struct {
+func (i Interval) String() string {
+	return i.op.String()
+}
+
+func (i Interval) Solve(varMap VarMap) Interval {
+	i.op = i.op.Solve(varMap)
+	return i
+}
+
+type constInterval struct {
 	left  float64
 	right float64
 }
 
-func (i intervalImpl) Solve(varMap VarMap) Interval {
+func (i constInterval) Solve(varMap VarMap) operation {
 	return i
 }
 
-func (i intervalImpl) String() string {
+func (i constInterval) String() string {
 	return "[" + strconv.FormatFloat(i.left, 'f', 4, 64) + ", " + strconv.FormatFloat(i.right, 'f', 4, 64) + "]"
 }
 
-func (i intervalImpl) priority() byte {
+func (i constInterval) priority() byte {
 	return 255
 }
 
-func (i intervalImpl) mul(multipliers ...Interval) Interval {
+func (i constInterval) mul(multiplier operation) operation {
 	return mul{
 		k:        i,
-		operands: multipliers,
+		operands: []operation{multiplier},
 	}
 }
 
-func (i intervalImpl) add(addends ...Interval) Interval {
+func (i constInterval) add(addend operation) operation {
 	return add{
 		m:        i,
-		operands: addends,
+		operands: []operation{addend},
 	}
 }
 
-func (i intervalImpl) Add(addednds ...Interval) Interval {
-	return i.add(addednds...)
-}
-
-func (i intervalImpl) Sub(subtrahend Interval) Interval {
-	return add{
-		m:           i,
-		invOperands: []Interval{subtrahend},
+func (i Interval) Add(addednds ...Interval) Interval {
+	op := i.op
+	for _, a := range addednds {
+		op = op.add(a.op)
+	}
+	return Interval{
+		op: op,
 	}
 }
 
-func (i intervalImpl) Mul(multipliers ...Interval) Interval {
-	return i.mul(multipliers...)
+func (i Interval) Sub(subtrahend Interval) Interval {
+	op := add{
+		m:        add{}.neutral(),
+		operands: []operation{subtrahend.op},
+	}
+	i.op = i.op.add(op.inversed().op())
+	return i
 }
 
-func (i intervalImpl) Div(divider Interval) Interval {
-	return mul{
-		k:           i,
-		invOperands: []Interval{divider},
+func (i Interval) Mul(multipliers ...Interval) Interval {
+	i.op = mul{
+		k:        mul{}.neutral(),
+		operands: []operation{i.op},
 	}
+	for _, m := range multipliers {
+		i.op = i.op.mul(m.op)
+	}
+	return i
+}
+
+func (i Interval) Div(divider Interval) Interval {
+	op := mul{
+		k:        mul{}.neutral(),
+		operands: []operation{divider.op},
+	}
+	i.op = i.op.mul(op.inversed().op())
+	return i
 }
 
 type VarMap map[string]Interval
 
 func Var(name string) (Interval, error) {
 	if !varRegexp.MatchString(name) {
-		return nil, errors.New("bad variable name")
+		return Interval{}, errors.New("bad variable name")
 	}
-	return variable{
-		varName: name,
+	return Interval{
+		op: variable{
+			varName: name,
+		},
 	}, nil
 }
 
@@ -92,9 +117,9 @@ type variable struct {
 	varName string
 }
 
-func (i variable) Solve(varMap VarMap) Interval {
-	if varMap[i.varName] != nil {
-		return varMap[i.varName]
+func (i variable) Solve(varMap VarMap) operation {
+	if varMap[i.varName].op != nil {
+		return varMap[i.varName].op
 	}
 	return i
 }
@@ -107,41 +132,16 @@ func (i variable) priority() byte {
 	return 255
 }
 
-func (i variable) mul(multipliers ...Interval) Interval {
-	multipliers = append(multipliers, i)
+func (i variable) mul(multiplier operation) operation {
 	return mul{
 		k:        mul{}.neutral(),
-		operands: multipliers,
+		operands: []operation{i, multiplier},
 	}
 }
 
-func (i variable) add(addends ...Interval) Interval {
-	addends = append(addends, i)
+func (i variable) add(addend operation) operation {
 	return add{
 		m:        add{}.neutral(),
-		operands: addends,
-	}
-}
-
-func (i variable) Add(addednds ...Interval) Interval {
-	return i.add(addednds...)
-}
-
-func (i variable) Sub(subtrahend Interval) Interval {
-	return add{
-		operands:    []Interval{i},
-		invOperands: []Interval{subtrahend},
-	}
-}
-
-func (i variable) Mul(multipliers ...Interval) Interval {
-	return i.mul(multipliers...)
-}
-
-func (i variable) Div(divider Interval) Interval {
-	return mul{
-		k:           mul{}.neutral(),
-		operands:    []Interval{i},
-		invOperands: []Interval{divider},
+		operands: []operation{addend, i},
 	}
 }
