@@ -1,3 +1,12 @@
+/*
+Package domain describes intervals and base operation on them:
+<ul>
+	<li> Add </li>
+	<li> Sub </li>
+	<li> Mul </li>
+	<li> Div </li>
+</ul>
+*/
 package domain
 
 import (
@@ -8,10 +17,12 @@ import (
 
 var varRegexp = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9]*$")
 
+//Interval structure describing interval with operations on it
 type Interval struct {
 	op operation
 }
 
+//NewInterval creates new interval with const values of left and right bounds of interval
 func NewInterval(left float64, right float64) Interval {
 	return Interval{
 		op: constInterval{
@@ -21,10 +32,12 @@ func NewInterval(left float64, right float64) Interval {
 	}
 }
 
+//String returns string representation of interval
 func (i Interval) String() string {
 	return i.op.String()
 }
 
+//Solve folds and solve interval with variable values passed in VarMap. Returns folded and solved interval
 func (i Interval) Solve(varMap VarMap) Interval {
 	i.op = i.op.Solve(varMap)
 	return i
@@ -61,6 +74,8 @@ func (i constInterval) add(addend operation) operation {
 	}
 }
 
+//Add returns result of addition current interval and passed addends
+//[a, b].Add([a1,b1], [a2, b2], ..., [an, bn]) = [a, b] + [a1, b1] + [a2, b2] + ... + [an, bn]
 func (i Interval) Add(addednds ...Interval) Interval {
 	op := i.op
 	for _, a := range addednds {
@@ -71,6 +86,8 @@ func (i Interval) Add(addednds ...Interval) Interval {
 	}
 }
 
+//Sub returns result of subtraction subtrahend from current interval
+//[a, b].Sub([c, d]) = [a, b] - [c, d]
 func (i Interval) Sub(subtrahend Interval) Interval {
 	op := add{
 		m:        add{}.neutral(),
@@ -80,6 +97,8 @@ func (i Interval) Sub(subtrahend Interval) Interval {
 	return i
 }
 
+//Mul returns result of multiplying current interval on passed multipliers
+//[a, b].Mul([a1,b1], [a2, b2], ..., [an, bn]) = [a, b] * [a1, b1] * [a2, b2] * ... * [an, bn]
 func (i Interval) Mul(multipliers ...Interval) Interval {
 	i.op = mul{
 		k:        mul{}.neutral(),
@@ -91,6 +110,8 @@ func (i Interval) Mul(multipliers ...Interval) Interval {
 	return i
 }
 
+//Div returns result of division current interval on divider
+//[a, b].Sub([c, d]) = [a, b] / [c, d]
 func (i Interval) Div(divider Interval) Interval {
 	op := mul{
 		k:        mul{}.neutral(),
@@ -100,8 +121,11 @@ func (i Interval) Div(divider Interval) Interval {
 	return i
 }
 
+//VarMap type describing variable values in format {"varName", Interval}
 type VarMap map[string]Interval
 
+//Var creates new variable interval with passed name.
+//variable name should contain only letters and digits and start from letter, else creation will return error
 func Var(name string) (Interval, error) {
 	if !varRegexp.MatchString(name) {
 		return Interval{}, errors.New("bad variable name")
