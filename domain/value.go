@@ -87,16 +87,16 @@ func (r Value) String() string {
 
 func (z *Value) add(a, b *Value) *Value {
 	if z.num == nil {
-		z.num == new(big.Int)
+		z.num = new(big.Int)
 	}
 	if z.denom == nil {
-		z.denom == new(big.Int)
+		z.denom = new(big.Int)
 	}
 	nod := nod(a.denom, b.denom)
 	temp := new(big.Int)
 	temp.Div(b.denom, nod)
-	z.num.Mul(a.num, temp1)
-	z.denom.Mul(a.denom, temp1)
+	z.num.Mul(a.num, temp)
+	z.denom.Mul(a.denom, temp)
 	temp.Div(a.denom, nod)
 	z.num.Add(z.num, new(big.Int).Mul(temp, b.num))
 	return z.reduce()
@@ -104,16 +104,16 @@ func (z *Value) add(a, b *Value) *Value {
 
 func (z *Value) sub(a, b *Value) *Value {
 	if z.num == nil {
-		z.num == new(big.Int)
+		z.num = new(big.Int)
 	}
 	if z.denom == nil {
-		z.denom == new(big.Int)
+		z.denom = new(big.Int)
 	}
 	nod := nod(a.denom, b.denom)
 	temp := new(big.Int)
 	temp.Div(b.denom, nod)
-	z.num.Mul(a.num, temp1)
-	z.denom.Mul(a.denom, temp1)
+	z.num.Mul(a.num, temp)
+	z.denom.Mul(a.denom, temp)
 	temp.Div(a.denom, nod)
 	z.num.Sub(z.num, new(big.Int).Mul(temp, b.num))
 	return z.reduce()
@@ -121,10 +121,10 @@ func (z *Value) sub(a, b *Value) *Value {
 
 func (z *Value) mul(a, b *Value) *Value {
 	if z.num == nil {
-		z.num == new(big.Int)
+		z.num = new(big.Int)
 	}
 	if z.denom == nil {
-		z.denom == new(big.Int)
+		z.denom = new(big.Int)
 	}
 	z.num.Mul(a.num, b.num)
 	z.denom.Mul(a.denom, b.denom)
@@ -133,10 +133,10 @@ func (z *Value) mul(a, b *Value) *Value {
 
 func (z *Value) div(a, b *Value) *Value {
 	if z.num == nil {
-		z.num == new(big.Int)
+		z.num = new(big.Int)
 	}
 	if z.denom == nil {
-		z.denom == new(big.Int)
+		z.denom = new(big.Int)
 	}
 	z.num.Mul(a.num, b.denom)
 	z.denom.Mul(a.denom, b.num)
@@ -163,10 +163,10 @@ func (a Value) cmp(b *Value) int {
 	}
 	tmp1 := new(big.Int)
 	tmp2 := new(big.Int)
-	if diff := tmp1.Div(a.num, a.denom).Sub(tmp2.Div(b.num, b.denom)); diff.Sign() == 0 {
+	if diff := new(big.Int).Sub(tmp1.Div(a.num, a.denom), tmp2.Div(b.num, b.denom)); diff.Sign() == 0 {
 		return diff.Sign()
 	} else {
-		return tmp1.Mod(a.num, a.denom).Sub(tmp2.Mod(b.num, b.denom)).Sign()
+		return new(big.Int).Sub(tmp1.Mod(a.num, a.denom), tmp2.Mod(b.num, b.denom)).Sign()
 	}
 }
 
