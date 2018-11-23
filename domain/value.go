@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+//Inf returns infinite Value
 func Inf() *Value {
 	return &Value{
 		num:   big.NewInt(1),
@@ -13,6 +14,7 @@ func Inf() *Value {
 	}
 }
 
+//NegInf returns negative infinite value
 func NegInf() *Value {
 	return &Value{
 		num:   big.NewInt(-1),
@@ -20,6 +22,9 @@ func NegInf() *Value {
 	}
 }
 
+//NaN returns NaN value.
+//WARNING: comparing two NaN values will lead to panic
+//PANIC NaN.cmp(NaN())
 func NaN() *Value {
 	return &Value{
 		num:   big.NewInt(0),
@@ -27,6 +32,7 @@ func NaN() *Value {
 	}
 }
 
+//Value type for representation numeric value with fraction
 type Value struct {
 	num   *big.Int
 	denom *big.Int
@@ -81,9 +87,9 @@ func NewFloat(f float64) *Value {
 func (v *Value) sign() int {
 	if v.denom.Sign() == 0 {
 		return v.num.Sign()
-	} else {
-		return v.denom.Sign() * v.num.Sign()
 	}
+	return v.denom.Sign() * v.num.Sign()
+
 }
 
 func (r *Value) reduce() *Value {
@@ -97,6 +103,7 @@ func (r *Value) reduce() *Value {
 	return r
 }
 
+//String converts value to string
 func (r Value) String() string {
 	if r.denom.Sign() == 0 && r.num.Sign() == 0 {
 		return "NaN"
@@ -132,6 +139,16 @@ func (r Value) String() string {
 	return res
 }
 
+//add adds to values
+//z = a + b
+//Some specific operations
+//Inf() + Inf() == Inf()
+//NegInf() + NegInf() == NegInf()
+//Inf() + x == Inf() for every finite x
+//NegInf() + x == NegInf() for every finite x
+//Inf() + NegInf() == NaN()
+//NaN() + x == NaN() for every x
+//NaN() + NaN() == NaN() for every x
 func (z *Value) add(a, b *Value) *Value {
 	if z.num == nil {
 		z.num = new(big.Int)
@@ -166,6 +183,16 @@ func (z *Value) add(a, b *Value) *Value {
 	return z.reduce()
 }
 
+//sub subs to values
+//z = a - b
+//Some specific operations
+//Inf() - Inf() == NaN()
+//NegInf() - NegInf() == NaN()
+//Inf() - x == Inf() for every finite x
+//NegInf() - x == NegInf() for every finite x
+//Inf() - NegInf() == NaN()
+//NaN() - x == NaN() for every x
+//NaN() - NaN() == NaN() for every x
 func (z *Value) sub(a, b *Value) *Value {
 	if z.num == nil {
 		z.num = new(big.Int)
@@ -208,6 +235,16 @@ func (z *Value) sub(a, b *Value) *Value {
 	return z.reduce()
 }
 
+//mul multiplies to values
+//z = a * b
+//Some specific operations
+//Inf() * x == Inf() for every positive x
+//Inf() * x == NegInf() for every negative x
+//NegInf() * x == NegInf() for every positive x
+//NegInf() * x == Inf() for every negative x
+//Inf() * NegInf() == NaN()
+//NaN() * x == NaN() for every x
+//NaN() * NaN() == NaN() for every x
 func (z *Value) mul(a, b *Value) *Value {
 	if z.num == nil {
 		z.num = new(big.Int)
@@ -236,6 +273,18 @@ func (z *Value) mul(a, b *Value) *Value {
 	return z.reduce()
 }
 
+//div divides to values
+//z = a / b
+//Some specific operations
+//Inf() / Inf() == NaN()
+//NegInf() / NegInf() == NaN()
+//Inf() / x == Inf() for every positive x
+//Inf() / x == NegInf() for every negative x
+//NegInf() / x == NegInf() for every positive x
+//NegInf() / x == Inf() for every negative x
+//Inf() / NegInf() == NaN()
+//NaN() / x == NaN() for every x
+//NaN() / NaN() == NaN() for every x
 func (z *Value) div(a, b *Value) *Value {
 	if z.num == nil {
 		z.num = new(big.Int)
@@ -271,6 +320,21 @@ func (z *Value) div(a, b *Value) *Value {
 	return z.reduce()
 }
 
+//cmp compares a and b
+//if a < b a.cmp(b) == -1
+//if a > b a.cmp(b) == 1
+//if a = b a.cmp(b) == 0
+//Specific comparasions:
+//
+//WARINING: NaN().cmp(x) or x.cmp(NaN()) will lead to panic for every x except of NaN
+//
+//Inf().cmp(Inf()) == 0
+//Inf().cmp(x) == 1 for any x
+//x.cmp(Inf()) = -1 for any x
+//NegInf().cmp(NegInf()) == 0 for any x
+//NegInf().cmp(x) == -1 for any x
+//x.cmp(NegInf()) = 1 for any x
+//NaN().cmp(NaN) == 0 for any x. Read warning above.
 func (a Value) cmp(b *Value) int {
 	if a.denom.Sign() == 0 && b.denom.Sign() == 0 &&
 		a.num.Sign() == 0 && b.num.Sign() == 0 {
