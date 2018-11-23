@@ -29,7 +29,7 @@ func (o mul) neutral() constInterval {
 }
 
 func (o mul) inversed() group {
-	o.k = binaryDiv(o.neutral(), o.k)
+	o.k = o.neutral().divConst(o.k)
 	o.operands, o.invOperands = o.invOperands, o.operands
 	return o
 }
@@ -54,14 +54,14 @@ func (o mul) Solve(varMap VarMap) operation {
 			if i.left == 0 && i.right == 0 {
 				return constInterval{0, 0}
 			}
-			res.k = binaryMul(res.k, i)
+			res.k = res.k.mulConst(i)
 			continue
 		}
 		if m, ok := operand.Solve(varMap).(mul); ok {
 			if m.k.left == 0 && m.k.right == 0 {
 				return constInterval{0, 0}
 			}
-			res.k = binaryMul(m.k, res.k)
+			res.k = res.k.mulConst(m.k)
 			res.operands = append(res.operands, m.operands...)
 			res.invOperands = append(res.invOperands, m.invOperands...)
 			continue
@@ -73,14 +73,14 @@ func (o mul) Solve(varMap VarMap) operation {
 			if i.left == 0 || i.right == 0 {
 				panic("Division by zero interval")
 			}
-			res.k = binaryDiv(res.k, i)
+			res.k = res.k.divConst(i)
 			continue
 		}
 		if m, ok := operand.Solve(varMap).(mul); ok {
 			if m.k.left == 0 || m.k.right == 0 {
 				panic("Division by zero interval")
 			}
-			res.k = binaryDiv(res.k, m.k)
+			res.k = res.k.divConst(m.k)
 			res.operands = append(res.operands, m.invOperands...)
 			res.invOperands = append(res.invOperands, m.operands...)
 			continue
@@ -144,7 +144,7 @@ func (o add) neutral() constInterval {
 }
 
 func (o add) inversed() group {
-	o.m = binarySub(o.neutral(), o.m)
+	o.m = o.neutral().subConst(o.m)
 	o.operands, o.invOperands = o.invOperands, o.operands
 	return o
 }
@@ -163,11 +163,11 @@ func (o add) Solve(varMap VarMap) operation {
 	}
 	for _, operand := range o.operands {
 		if i, ok := operand.Solve(varMap).(constInterval); ok {
-			res.m = binaryAdd(res.m, i)
+			res.m = res.m.addConst(i)
 			continue
 		}
 		if a, ok := operand.Solve(varMap).(add); ok {
-			res.m = binaryAdd(a.m, res.m)
+			res.m = res.m.addConst(a.m)
 			res.operands = append(res.operands, a.operands...)
 			res.invOperands = append(res.invOperands, a.invOperands...)
 			continue
@@ -176,11 +176,11 @@ func (o add) Solve(varMap VarMap) operation {
 	}
 	for _, operand := range o.invOperands {
 		if i, ok := operand.Solve(varMap).(constInterval); ok {
-			res.m = binarySub(res.m, i)
+			res.m = res.m.subConst(i)
 			continue
 		}
 		if a, ok := operand.Solve(varMap).(add); ok {
-			res.m = binarySub(res.m, a.m)
+			res.m = res.m.subConst(a.m)
 			res.operands = append(res.operands, a.invOperands...)
 			res.invOperands = append(res.invOperands, a.operands...)
 			continue

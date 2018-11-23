@@ -11,6 +11,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"strconv"
 )
@@ -72,6 +73,70 @@ func (i constInterval) add(addend operation) operation {
 		m:        i,
 		operands: []operation{addend},
 	}
+}
+
+func (a constInterval) addConst(b constInterval) constInterval {
+	res := constInterval{a.left + b.left, a.right + b.right}
+	if res.left > res.right {
+		res.right, res.left = res.left, res.right
+	}
+	return res
+}
+
+func (a constInterval) subConst(b constInterval) constInterval {
+	res := constInterval{a.left - b.left, a.right - b.right}
+	if res.left > res.right {
+		res.right, res.left = res.left, res.right
+	}
+	return res
+}
+
+func (a constInterval) mulConst(b constInterval) constInterval {
+	min := math.Min(
+		math.Min(
+			a.left*b.left,
+			a.left*b.right,
+		),
+		math.Min(
+			a.right*b.left,
+			a.right*b.right,
+		),
+	)
+	max := math.Max(
+		math.Max(
+			a.left*b.left,
+			a.left*b.right,
+		),
+		math.Max(
+			a.right*b.left,
+			a.right*b.right,
+		),
+	)
+	return constInterval{min, max}
+}
+
+func (a constInterval) divConst(b constInterval) constInterval {
+	min := math.Min(
+		math.Min(
+			a.left/b.left,
+			a.left/b.right,
+		),
+		math.Min(
+			a.right/b.left,
+			a.right/b.right,
+		),
+	)
+	max := math.Max(
+		math.Max(
+			a.left/b.left,
+			a.left/b.right,
+		),
+		math.Max(
+			a.right/b.left,
+			a.right/b.right,
+		),
+	)
+	return constInterval{min, max}
 }
 
 //Add returns result of addition current interval and passed addends
