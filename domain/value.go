@@ -32,6 +32,22 @@ func NaN() *Value {
 	}
 }
 
+//Zero returns zero value
+func Zero() *Value {
+	return &Value{
+		num:   big.NewInt(0),
+		denom: big.NewInt(1),
+	}
+}
+
+//Zero returns zero value
+func One() *Value {
+	return &Value{
+		num:   big.NewInt(1),
+		denom: big.NewInt(1),
+	}
+}
+
 //Value type for representation numeric value with fraction
 type Value struct {
 	num   *big.Int
@@ -84,7 +100,17 @@ func NewFloat(f float64) *Value {
 	}).reduce()
 }
 
+//NewInt returns new int value in fraction representation
+func NewInt(i int64) *Value {
+	return (&Value{
+		num:   big.NewInt(i),
+		denom: big.NewInt(1),
+	}).reduce()
+}
+
 func (v *Value) sign() int {
+	v.checkNil()
+
 	if v.denom.Sign() == 0 {
 		return v.num.Sign()
 	}
@@ -93,6 +119,8 @@ func (v *Value) sign() int {
 }
 
 func (r *Value) reduce() *Value {
+	r.checkNil()
+
 	nod := nod(r.num, r.denom)
 	r.num.Div(r.num, nod)
 	r.denom.Div(r.denom, nod)
@@ -105,6 +133,8 @@ func (r *Value) reduce() *Value {
 
 //String converts value to string
 func (r Value) String() string {
+	r.checkNil()
+
 	if r.denom.Sign() == 0 && r.num.Sign() == 0 {
 		return "NaN"
 	}
@@ -150,12 +180,9 @@ func (r Value) String() string {
 //NaN() + x == NaN() for every x
 //NaN() + NaN() == NaN() for every x
 func (z *Value) add(a, b *Value) *Value {
-	if z.num == nil {
-		z.num = new(big.Int)
-	}
-	if z.denom == nil {
-		z.denom = new(big.Int)
-	}
+	z.checkNil()
+	a.checkNil()
+	b.checkNil()
 
 	if a.num.Sign() == 0 && a.denom.Sign() == 0 ||
 		b.num.Sign() == 0 && b.denom.Sign() == 0 ||
@@ -194,12 +221,9 @@ func (z *Value) add(a, b *Value) *Value {
 //NaN() - x == NaN() for every x
 //NaN() - NaN() == NaN() for every x
 func (z *Value) sub(a, b *Value) *Value {
-	if z.num == nil {
-		z.num = new(big.Int)
-	}
-	if z.denom == nil {
-		z.denom = new(big.Int)
-	}
+	z.checkNil()
+	a.checkNil()
+	b.checkNil()
 
 	if a.num.Sign() == 0 && a.denom.Sign() == 0 ||
 		b.num.Sign() == 0 && b.denom.Sign() == 0 ||
@@ -246,12 +270,9 @@ func (z *Value) sub(a, b *Value) *Value {
 //NaN() * x == NaN() for every x
 //NaN() * NaN() == NaN() for every x
 func (z *Value) mul(a, b *Value) *Value {
-	if z.num == nil {
-		z.num = new(big.Int)
-	}
-	if z.denom == nil {
-		z.denom = new(big.Int)
-	}
+	z.checkNil()
+	a.checkNil()
+	b.checkNil()
 
 	if a.num.Sign() == 0 && a.denom.Sign() == 0 ||
 		b.num.Sign() == 0 && b.denom.Sign() == 0 {
@@ -286,12 +307,9 @@ func (z *Value) mul(a, b *Value) *Value {
 //NaN() / x == NaN() for every x
 //NaN() / NaN() == NaN() for every x
 func (z *Value) div(a, b *Value) *Value {
-	if z.num == nil {
-		z.num = new(big.Int)
-	}
-	if z.denom == nil {
-		z.denom = new(big.Int)
-	}
+	z.checkNil()
+	a.checkNil()
+	b.checkNil()
 
 	if a.num.Sign() == 0 && a.denom.Sign() == 0 ||
 		b.num.Sign() == 0 && b.denom.Sign() == 0 ||
@@ -336,6 +354,9 @@ func (z *Value) div(a, b *Value) *Value {
 //x.cmp(NegInf()) = 1 for any x
 //NaN().cmp(NaN) == 0 for any x. Read warning above.
 func (a Value) cmp(b *Value) int {
+	a.checkNil()
+	b.checkNil()
+
 	if a.denom.Sign() == 0 && b.denom.Sign() == 0 &&
 		a.num.Sign() == 0 && b.num.Sign() == 0 {
 		return 0
@@ -395,6 +416,16 @@ func (a Value) cmp(b *Value) int {
 			tmp2.Mul(b.num, new(big.Int).Div(a.denom, nod)),
 		)
 		return diff.Sign()
+	}
+}
+
+func (v *Value) checkNil() {
+	if v.num == nil {
+		v.num = new(big.Int)
+	}
+	if v.denom == nil {
+		v.denom = new(big.Int)
+		v.denom.SetInt64(1)
 	}
 }
 
