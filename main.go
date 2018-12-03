@@ -14,14 +14,14 @@ func main() {
 
 	op := variable.Add(
 		variable.Div(
-			domain.NewInterval(5, 5).Add(
+			domain.NewInterval(domain.NewFrac(5, 1), domain.NewFrac(6, 1)).Add(
 				variable,
 			),
 		).Mul(
-			domain.NewInterval(1, 1),
+			domain.NewInterval(domain.NewFrac(5, 3), domain.NewFrac(1, 2)),
 		).Div(
 			variable,
 		),
-	).Sub(domain.NewInterval(1, 1))
-	fmt.Println(op.Solve(domain.VarMap{"u": domain.NewInterval(1, 1)}).String())
+	).Sub(domain.NewInterval(domain.NewFrac(1, 1), domain.NewFrac(1, 1)))
+	fmt.Println(op.Solve(domain.VarMap{"u": domain.NewInterval(domain.NewFrac(1, 1), domain.NewFrac(1, 1))}).String())
 }

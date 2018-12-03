@@ -25,7 +25,7 @@ type mul struct {
 }
 
 func (o mul) neutral() constInterval {
-	return constInterval{1, 1}
+	return constInterval{NewFrac(1, 1), NewFrac(1, 1)}
 }
 
 func (o mul) inversed() group {
@@ -46,20 +46,20 @@ func (o mul) Solve(varMap VarMap) operation {
 	var res = mul{
 		k: o.k,
 	}
-	if o.k.left == 0 && o.k.right == 0 {
-		return constInterval{0, 0}
+	if o.k.left.cmp(Zero()) == 0 && o.k.right.cmp(Zero()) == 0 {
+		return constInterval{Zero(), Zero()}
 	}
 	for _, operand := range o.operands {
 		if i, ok := operand.Solve(varMap).(constInterval); ok {
-			if i.left == 0 && i.right == 0 {
-				return constInterval{0, 0}
+			if i.left.cmp(Zero()) == 0 && i.right.cmp(Zero()) == 0 {
+				return constInterval{Zero(), Zero()}
 			}
 			res.k = res.k.mulConst(i)
 			continue
 		}
 		if m, ok := operand.Solve(varMap).(mul); ok {
-			if m.k.left == 0 && m.k.right == 0 {
-				return constInterval{0, 0}
+			if m.k.left.cmp(Zero()) == 0 && m.k.right.cmp(Zero()) == 0 {
+				return constInterval{Zero(), Zero()}
 			}
 			res.k = res.k.mulConst(m.k)
 			res.operands = append(res.operands, m.operands...)
@@ -70,16 +70,10 @@ func (o mul) Solve(varMap VarMap) operation {
 	}
 	for _, operand := range o.invOperands {
 		if i, ok := operand.Solve(varMap).(constInterval); ok {
-			if i.left == 0 || i.right == 0 {
-				panic("Division by zero interval")
-			}
 			res.k = res.k.divConst(i)
 			continue
 		}
 		if m, ok := operand.Solve(varMap).(mul); ok {
-			if m.k.left == 0 || m.k.right == 0 {
-				panic("Division by zero interval")
-			}
 			res.k = res.k.divConst(m.k)
 			res.operands = append(res.operands, m.invOperands...)
 			res.invOperands = append(res.invOperands, m.operands...)
@@ -140,7 +134,7 @@ type add struct {
 }
 
 func (o add) neutral() constInterval {
-	return constInterval{0, 0}
+	return constInterval{Zero(), Zero()}
 }
 
 func (o add) inversed() group {

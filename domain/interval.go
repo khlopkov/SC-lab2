@@ -11,9 +11,7 @@ package domain
 
 import (
 	"errors"
-	"math"
 	"regexp"
-	"strconv"
 )
 
 var varRegexp = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9]*$")
@@ -24,7 +22,7 @@ type Interval struct {
 }
 
 //NewInterval creates new interval with const values of left and right bounds of interval
-func NewInterval(left float64, right float64) Interval {
+func NewInterval(left *Value, right *Value) Interval {
 	return Interval{
 		op: constInterval{
 			left:  left,
@@ -45,8 +43,8 @@ func (i Interval) Solve(varMap VarMap) Interval {
 }
 
 type constInterval struct {
-	left  float64
-	right float64
+	left  *Value
+	right *Value
 }
 
 func (i constInterval) Solve(varMap VarMap) operation {
@@ -54,7 +52,7 @@ func (i constInterval) Solve(varMap VarMap) operation {
 }
 
 func (i constInterval) String() string {
-	return "[" + strconv.FormatFloat(i.left, 'f', 4, 64) + ", " + strconv.FormatFloat(i.right, 'f', 4, 64) + "]"
+	return "[" + i.left.String() + ", " + i.right.String() + "]"
 }
 
 func (i constInterval) priority() byte {
@@ -76,66 +74,92 @@ func (i constInterval) add(addend operation) operation {
 }
 
 func (a constInterval) addConst(b constInterval) constInterval {
-	res := constInterval{a.left + b.left, a.right + b.right}
-	if res.left > res.right {
+	res := constInterval{
+		left:  new(Value),
+		right: new(Value),
+	}
+	res.left.add(a.left, b.left)
+	if res.left.cmp(res.right) > 0 {
 		res.right, res.left = res.left, res.right
 	}
 	return res
 }
 
 func (a constInterval) subConst(b constInterval) constInterval {
-	res := constInterval{a.left - b.left, a.right - b.right}
-	if res.left > res.right {
+	res := constInterval{
+		left:  new(Value),
+		right: new(Value),
+	}
+	res.left.sub(a.left, b.left)
+	if res.left.cmp(res.right) > 0 {
 		res.right, res.left = res.left, res.right
 	}
 	return res
 }
 
 func (a constInterval) mulConst(b constInterval) constInterval {
-	min := math.Min(
-		math.Min(
-			a.left*b.left,
-			a.left*b.right,
-		),
-		math.Min(
-			a.right*b.left,
-			a.right*b.right,
-		),
-	)
-	max := math.Max(
-		math.Max(
-			a.left*b.left,
-			a.left*b.right,
-		),
-		math.Max(
-			a.right*b.left,
-			a.right*b.right,
-		),
-	)
+	temp := new(Value)
+	min := new(Value)
+	min.mul(a.left, b.left)
+	max := new(Value)
+	max.mul(a.left, b.left)
+
+	temp.mul(a.left, b.right)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
+
+	temp.mul(a.right, b.left)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
+
+	temp.mul(a.right, b.right)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
 	return constInterval{min, max}
 }
 
 func (a constInterval) divConst(b constInterval) constInterval {
-	min := math.Min(
-		math.Min(
-			a.left/b.left,
-			a.left/b.right,
-		),
-		math.Min(
-			a.right/b.left,
-			a.right/b.right,
-		),
-	)
-	max := math.Max(
-		math.Max(
-			a.left/b.left,
-			a.left/b.right,
-		),
-		math.Max(
-			a.right/b.left,
-			a.right/b.right,
-		),
-	)
+	temp := new(Value)
+	min := new(Value)
+	min.div(a.left, b.left)
+	max := new(Value)
+	max.div(a.left, b.left)
+
+	temp.div(a.left, b.right)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
+
+	temp.div(a.right, b.left)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
+
+	temp.div(a.right, b.right)
+	if temp.cmp(min) < 0 {
+		min = temp
+	}
+	if temp.cmp(max) > 0 {
+		max = temp
+	}
 	return constInterval{min, max}
 }
 
